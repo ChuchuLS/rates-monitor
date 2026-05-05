@@ -28,6 +28,61 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+# ---------------------------------------------------------------------------
+# Password gate
+# ---------------------------------------------------------------------------
+def _check_password() -> bool:
+    """
+    Simple password gate. Reads the expected password from Streamlit secrets
+    (key: 'app_password'). If the secret isn't set, the gate is disabled and
+    the app runs normally — useful for local development.
+
+    Returns True if the user has authenticated, False otherwise.
+    """
+    expected = st.secrets.get("app_password") if hasattr(st, "secrets") else None
+    if not expected:
+        # No password configured — let everyone in (e.g. local dev)
+        return True
+
+    if st.session_state.get("password_correct"):
+        return True
+
+    st.markdown(
+        """
+        <div style="max-width:420px;margin:5rem auto 1rem;
+                    padding:2rem;background:#0a0a0a;
+                    border:1px solid #1a1a1a;border-radius:6px;
+                    font-family:Inter,system-ui,sans-serif;color:#fff;">
+          <div style="font-size:18px;font-weight:700;letter-spacing:0.06em;
+                      text-transform:uppercase;margin-bottom:6px;">
+            Rates & Credit Monitor
+          </div>
+          <div style="font-size:11px;color:#888;letter-spacing:0.08em;
+                      text-transform:uppercase;margin-bottom:1.5rem;">
+            Authentication required
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    pwd = st.text_input(
+        "Password", type="password", key="password_input",
+        label_visibility="collapsed", placeholder="Enter password",
+    )
+    if pwd:
+        if pwd == expected:
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+    return False
+
+
+if not _check_password():
+    st.stop()
+
+
 DATA_PATH = Path(__file__).parent / "data" / "DATA.xlsx"
 
 # ---------------------------------------------------------------------------

@@ -136,28 +136,21 @@ st.markdown(
     }
     /* Reduce default block padding for tighter dashboard feel */
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 4rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
-    /* Hide Streamlit Cloud chrome: top toolbar (GitHub icon, Share, Deploy
-       button, hamburger menu) and the "Hosted with Streamlit" footer badge.
-       We keep the header element itself visible because it also contains
-       the sidebar collapse/expand button. */
+    /* Hide Streamlit Cloud chrome: GitHub icon, Share button, Deploy button,
+       hamburger menu, and "Hosted with Streamlit" footer badge.
+       Keep the header itself fully visible so the sidebar toggle works. */
     [data-testid="stToolbar"] { display: none !important; }
     [data-testid="stDecoration"] { display: none !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
     [data-testid="stDeployButton"] { display: none !important; }
-    #MainMenu { visibility: hidden !important; display: none !important; }
-    footer { visibility: hidden !important; display: none !important; }
+    #MainMenu { display: none !important; }
+    footer { display: none !important; }
     .viewerBadge_container__1QSob { display: none !important; }
     .viewerBadge_link__1S137 { display: none !important; }
-    /* Make the header bar transparent so it blends into the page,
-       but keep the sidebar toggle inside it visible */
-    [data-testid="stHeader"] {
-        background: transparent !important;
-        height: 0 !important;
-    }
     /* Section header style */
     .section-header {
         background: #0a0a0a;

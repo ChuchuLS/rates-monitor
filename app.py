@@ -25,7 +25,7 @@ st.set_page_config(
     page_title="Rates & Credit Monitor",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 
@@ -635,11 +635,70 @@ def ofr_chart(series: pd.Series, top_note: str | None,
 # ---------------------------------------------------------------------------
 df = load_data()
 
-# Sidebar removed — y-axes are locked to full history so date filtering
-# was redundant. dff now equals the full df everywhere.
-start_date = df.index.min()
-end_date = df.index.max()
-dff = df
+with st.sidebar:
+    st.markdown(
+        """
+        <div style="padding:0.5rem 0 0.25rem;">
+          <div style="font-size:14px;font-weight:700;letter-spacing:0.08em;
+                      color:#fff;text-transform:uppercase;">
+            Rates & Credit Monitor
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption(f"{df.index.min().date()} → {df.index.max().date()}")
+    st.divider()
+
+    range_preset = st.radio(
+        "LOOKBACK",
+        ["6M", "1Y", "3Y", "5Y", "10Y", "Max", "Custom"],
+        index=2,
+    )
+
+    end_date = df.index.max()
+    if range_preset == "6M":
+        start_date = end_date - pd.DateOffset(months=6)
+    elif range_preset == "1Y":
+        start_date = end_date - pd.DateOffset(years=1)
+    elif range_preset == "3Y":
+        start_date = end_date - pd.DateOffset(years=3)
+    elif range_preset == "5Y":
+        start_date = end_date - pd.DateOffset(years=5)
+    elif range_preset == "10Y":
+        start_date = end_date - pd.DateOffset(years=10)
+    elif range_preset == "Max":
+        start_date = df.index.min()
+    else:
+        custom = st.date_input(
+            "Range",
+            value=(end_date - pd.DateOffset(years=3), end_date),
+            min_value=df.index.min().date(),
+            max_value=df.index.max().date(),
+        )
+        if isinstance(custom, tuple) and len(custom) == 2:
+            start_date = pd.Timestamp(custom[0])
+            end_date = pd.Timestamp(custom[1])
+        else:
+            start_date = end_date - pd.DateOffset(years=3)
+
+    st.divider()
+    st.markdown(
+        """
+        <div style="font-size:9px;color:#666;letter-spacing:0.1em;
+                    text-transform:uppercase;line-height:1.8;">
+          1 — Curve Explorer<br>
+          2 — Inflation Expectations<br>
+          3 — Money-market spreads<br>
+          4 — Liquidity<br>
+          5 — XCCY basis<br>
+          6 — Credit
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+dff = date_filter(df, start_date, end_date)
 
 # ---------------------------------------------------------------------------
 # Page header

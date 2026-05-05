@@ -1316,7 +1316,7 @@ with liq_right:
         fci_fig.add_trace(
             go.Scatter(
                 x=nfci.index, y=nfci.values, mode="lines",
-                line=dict(color=ACCENT_AMBER, width=1.4, dash="dash"),
+                line=dict(color=ACCENT_AMBER, width=1.4),
                 name="Chicago Fed NFCI",
                 hovertemplate="NFCI: %{y:.3f}<extra></extra>",
             ),
@@ -1424,25 +1424,25 @@ credit_fig.add_trace(
 )
 credit_fig.add_trace(
     go.Scatter(x=bofa.index, y=bofa.values, name="BofA 5Y CDS",
-               line=dict(color=TEXT_DIM, width=1, dash="dot"),
+               line=dict(color=TEXT_DIM, width=1),
                hovertemplate="BofA CDS: %{y:.0f}bp<extra></extra>"),
     secondary_y=False,
 )
 credit_fig.add_trace(
     go.Scatter(x=jpm.index, y=jpm.values, name="JPM 5Y CDS",
-               line=dict(color=ACCENT_PURPLE, width=1, dash="dot"),
+               line=dict(color=ACCENT_PURPLE, width=1),
                hovertemplate="JPM CDS: %{y:.0f}bp<extra></extra>"),
     secondary_y=False,
 )
 credit_fig.add_trace(
     go.Scatter(x=hy.index, y=hy.values, name="HY OAS",
-               line=dict(color=ACCENT_RED, width=1.7, dash="dash"),
+               line=dict(color=ACCENT_RED, width=1.7),
                hovertemplate="HY OAS: %{y:.0f}bp<extra></extra>"),
     secondary_y=True,
 )
 credit_fig.add_trace(
     go.Scatter(x=db_sub.index, y=db_sub.values, name="DB sub CDS",
-               line=dict(color=ACCENT_AMBER, width=1, dash="dot"),
+               line=dict(color=ACCENT_AMBER, width=1),
                hovertemplate="DB sub: %{y:.0f}bp<extra></extra>"),
     secondary_y=True,
 )

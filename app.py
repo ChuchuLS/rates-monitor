@@ -299,6 +299,29 @@ def date_filter(df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.
     return df.loc[(df.index >= start) & (df.index <= end)]
 
 
+def full_range(*series, pad: float = 0.08) -> tuple[float, float] | None:
+    """
+    Compute the full-history (min, max) across one or more pandas Series,
+    with a small padding on each side. Used to lock y-axes so that zooming
+    the time window doesn't change the vertical scale.
+
+    Returns None if no data — chart will fall back to plotly auto-range.
+    """
+    vals = []
+    for s in series:
+        if s is None or len(s) == 0:
+            continue
+        clean = s.dropna()
+        if len(clean):
+            vals.append(float(clean.min()))
+            vals.append(float(clean.max()))
+    if not vals:
+        return None
+    lo, hi = min(vals), max(vals)
+    span = hi - lo if hi > lo else max(abs(hi), 1.0)
+    return (lo - span * pad, hi + span * pad)
+
+
 # ---------------------------------------------------------------------------
 # Chart builders — all dark-themed
 # ---------------------------------------------------------------------------
@@ -326,7 +349,8 @@ def section_header(title: str, subtitle: str) -> None:
 
 def mini_dark(series: pd.Series, title: str, color: str = LINE_WHITE,
               height: int = 180, zero_line: bool = True,
-              fmt: str = "{:+.1f}") -> go.Figure:
+              fmt: str = "{:+.1f}",
+              y_range: tuple[float, float] | None = None) -> go.Figure:
     """Compact dark line chart with last-value badge."""
     fig = go.Figure()
     if len(series):
@@ -364,7 +388,8 @@ def mini_dark(series: pd.Series, title: str, color: str = LINE_WHITE,
     fig.update_xaxes(showgrid=False, tickfont=dict(size=8, color=TEXT_DIM),
                      linecolor="#222")
     fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
-                     tickfont=dict(size=8, color=TEXT_DIM), linecolor="#222")
+                     tickfont=dict(size=8, color=TEXT_DIM), linecolor="#222",
+                     range=y_range)
     return fig
 
 
@@ -409,7 +434,8 @@ def classify_regime(short: pd.Series, long_: pd.Series,
 
 def regime_panel(slope: pd.Series, regime: pd.Series,
                  title: str, height: int = 170,
-                 fallback_color: str = ACCENT_AMBER) -> go.Figure:
+                 fallback_color: str = ACCENT_AMBER,
+                 y_range: tuple[float, float] | None = None) -> go.Figure:
     """
     Histogram of slope colored by regime, with slope line overlaid in amber.
     Bloomberg Studio style — bars span from zero up/down to the slope value.
@@ -465,13 +491,15 @@ def regime_panel(slope: pd.Series, regime: pd.Series,
     fig.update_xaxes(showgrid=False, tickfont=dict(size=8, color=TEXT_DIM),
                      linecolor="#222")
     fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
-                     tickfont=dict(size=8, color=TEXT_DIM), linecolor="#222")
+                     tickfont=dict(size=8, color=TEXT_DIM), linecolor="#222",
+                     range=y_range)
     return fig
 
 
 
 def ofr_chart(series: pd.Series, top_note: str | None,
-              bottom_note: str | None, height: int = 160) -> go.Figure:
+              bottom_note: str | None, height: int = 160,
+              y_range: tuple[float, float] | None = None) -> go.Figure:
     """OFR-style dark chart with red/green interpretation note boxes."""
     fig = go.Figure()
     s = series.dropna()
@@ -511,6 +539,7 @@ def ofr_chart(series: pd.Series, top_note: str | None,
         margin=dict(l=10, r=55, t=10, b=20),
         yaxis=dict(side="right", showgrid=True, gridcolor=GRID,
                    zeroline=False, tickfont=dict(color=TEXT_DIM, size=9),
+                   range=y_range,
                    title=dict(text="<i>spread</i>",
                               font=dict(size=9, color="#aaa"), standoff=2)),
         xaxis=dict(showgrid=False, tickfont=dict(color=TEXT_DIM, size=9)),
@@ -670,7 +699,8 @@ def _curve_at(d, tenors):
 
 
 # --- Big regime panel (slope mode) ----------------------------------------
-def big_regime_panel(slope, regime, title, height=560):
+def big_regime_panel(slope, regime, title, height=560,
+                     y_range=None):
     fig = go.Figure()
     if len(slope):
         bar_colors = regime.map(REGIME_COLORS).fillna(REGIME_COLORS["none"])
@@ -718,6 +748,7 @@ def big_regime_panel(slope, regime, title, height=560):
         showgrid=True, gridcolor=GRID, zeroline=False,
         tickfont=dict(size=11, color="#bbb"), linecolor="#222",
         ticksuffix="bp",
+        range=y_range,
         title=dict(text="Slope (bp)", font=dict(size=11, color="#888")),
     )
     return fig
@@ -880,6 +911,10 @@ if is_slope_mode:
     short_tenor, long_tenor = TENOR_PAIRS[explorer_pair]
     short = get_series(dff, f"{explorer_country}_{short_tenor}")
     long_ = get_series(dff, f"{explorer_country}_{long_tenor}")
+    # Full-history slope used to lock the y-axis (so zooming the time
+    # window doesn't change the vertical scale)
+    short_full = get_series(df, f"{explorer_country}_{short_tenor}")
+    long_full = get_series(df, f"{explorer_country}_{long_tenor}")
 
     if len(short) == 0 or len(long_) == 0:
         st.warning(
@@ -888,6 +923,8 @@ if is_slope_mode:
         )
     else:
         slope, regime = classify_regime(short, long_, explorer_lookback)
+        slope_full, _ = classify_regime(short_full, long_full, explorer_lookback)
+        slope_y_range = full_range(slope_full)
         legend_chips = " &nbsp;&nbsp; ".join(
             f"<span style='display:inline-block;width:11px;height:11px;"
             f"background:{REGIME_COLORS[k]};vertical-align:middle;"
@@ -906,6 +943,7 @@ if is_slope_mode:
                 slope, regime,
                 f"{explorer_country} {explorer_pair} "
                 f"(regime vs {explorer_lookback}d ago)",
+                y_range=slope_y_range,
             ),
             use_container_width=True,
             key="explorer_slope",
@@ -1096,6 +1134,15 @@ spreads_def = [
     ),
 ]
 
+# Full-history MM spreads (for y-axis lock)
+mm_full_spreads = {
+    "GCF − TPR": get_series(df, "GCF") - get_series(df, "TPR"),
+    "TGCR − RRP": get_series(df, "TGCR") - get_series(df, "RRP"),
+    "SOFR − IORB": get_series(df, "SOFR") - get_series(df, "IORB"),
+    "EFFR − IORB": get_series(df, "EFFR") - get_series(df, "IORB"),
+    "SOFR − EFFR": get_series(df, "SOFR") - get_series(df, "EFFR"),
+}
+
 for name, category, explainer, s, top_note, bottom_note in spreads_def:
     last_val = s.dropna().iloc[-1] if len(s.dropna()) else float("nan")
     last_color = ACCENT_RED if (pd.notna(last_val) and last_val < 0) else ACCENT_GREEN
@@ -1104,6 +1151,9 @@ for name, category, explainer, s, top_note, bottom_note in spreads_def:
     parts = name.split(" − ")
     left_ticker = parts[0]
     right_ticker = parts[1] if len(parts) > 1 else ""
+
+    # Lock the y-axis to the full-history range for this spread
+    mm_y_range = full_range(mm_full_spreads.get(name))
 
     label_col, chart_col = st.columns([1, 4], gap="small")
 
@@ -1149,7 +1199,7 @@ for name, category, explainer, s, top_note, bottom_note in spreads_def:
 
     with chart_col:
         st.plotly_chart(
-            ofr_chart(s, top_note, bottom_note),
+            ofr_chart(s, top_note, bottom_note, y_range=mm_y_range),
             use_container_width=True,
             key=f"mm_{name.replace(' ', '_').replace('−', '_')}",
             config={"displayModeBar": False},
@@ -1201,11 +1251,14 @@ ovr_fig.update_layout(
                 bgcolor="rgba(0,0,0,0)",
                 font=dict(size=10, color="#ccc")),
 )
+ovr_full_series = [get_series(df, key) for _, key, _ in ovr_series]
+ovr_y_range = full_range(*ovr_full_series)
+
 ovr_fig.update_xaxes(showgrid=False, tickfont=dict(size=10, color=TEXT_DIM),
                      linecolor="#222")
 ovr_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                      tickfont=dict(size=10, color=TEXT_DIM), linecolor="#222",
-                     ticksuffix="%")
+                     ticksuffix="%", range=ovr_y_range)
 st.plotly_chart(ovr_fig, use_container_width=True, key="overnight_rates",
                 config={"displayModeBar": False})
 
@@ -1223,7 +1276,12 @@ liq_left, liq_right = st.columns(2, gap="medium")
 with liq_left:
     # Fed reserves time-series with weekly change histogram below
     s = get_series(dff, "FED_RESERVES").dropna()
+    s_full = get_series(df, "FED_RESERVES").dropna()
     weekly_change = s.diff()  # daily change, since data is daily; rename for clarity
+
+    # Full-history ranges for both panels (top: $T, bottom: Δ in $B)
+    res_top_range = full_range(s_full / 1_000_000.0) if len(s_full) else None
+    res_bot_range = full_range(s_full.diff().dropna() / 1000.0) if len(s_full) else None
 
     res_fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
@@ -1286,11 +1344,13 @@ with liq_left:
     res_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                          tickfont=dict(size=9, color=TEXT_DIM), linecolor="#222",
                          ticksuffix="T", row=1, col=1,
+                         range=res_top_range,
                          title=dict(text="Reserves ($T)",
                                     font=dict(size=10, color="#888")))
     res_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                          tickfont=dict(size=9, color=TEXT_DIM), linecolor="#222",
                          ticksuffix="B", row=2, col=1,
+                         range=res_bot_range,
                          title=dict(text="Δ ($B)",
                                     font=dict(size=10, color="#888")))
     st.plotly_chart(res_fig, use_container_width=True, key="fed_reserves",
@@ -1300,6 +1360,13 @@ with liq_right:
     # FCI composite: Bloomberg + Chicago Fed NFCI
     bbg_fci = get_series(dff, "FCI_BBG").dropna()
     nfci = get_series(dff, "FCI_NFCI").dropna()
+    bbg_full = get_series(df, "FCI_BBG").dropna()
+    nfci_full = get_series(df, "FCI_NFCI").dropna()
+
+    # Full-history ranges. NFCI's right axis is inverted (autorange='reversed')
+    # so we still pass (low, high) — plotly handles the flip.
+    bbg_y_range = full_range(bbg_full)
+    nfci_y_range = full_range(nfci_full)
 
     fci_fig = make_subplots(specs=[[{"secondary_y": True}]])
     if len(bbg_fci):
@@ -1350,11 +1417,14 @@ with liq_right:
     fci_fig.update_yaxes(title_text="BBG FCI (>100 = looser)",
                          secondary_y=False, showgrid=True, gridcolor=GRID,
                          zeroline=False, linecolor="#222",
+                         range=bbg_y_range,
                          tickfont=dict(size=10, color=TEXT_DIM),
                          title_font=dict(size=10, color="#888"))
+    # NFCI inverted: pass (high, low) so up = looser
+    nfci_y_range_inv = (nfci_y_range[1], nfci_y_range[0]) if nfci_y_range else None
     fci_fig.update_yaxes(title_text="NFCI (inverted, up = looser)",
                          secondary_y=True, showgrid=False, linecolor="#222",
-                         autorange="reversed",
+                         range=nfci_y_range_inv,
                          tickfont=dict(size=10, color=TEXT_DIM),
                          title_font=dict(size=10, color="#888"))
     st.plotly_chart(fci_fig, use_container_width=True, key="fci_composite",
@@ -1374,9 +1444,11 @@ cols = st.columns(5)
 for col, (ccy, label) in zip(cols, xccy_list):
     with col:
         s = get_series(dff, f"XCCY_{ccy}")
+        s_full = get_series(df, f"XCCY_{ccy}")
         if len(s):
             st.plotly_chart(
-                mini_dark(s, f"{label}/USD 3M basis", color=ACCENT_AMBER),
+                mini_dark(s, f"{label}/USD 3M basis", color=ACCENT_AMBER,
+                          y_range=full_range(s_full)),
                 use_container_width=True, key=f"xccy3m_{ccy}",
                 config={"displayModeBar": False},
             )
@@ -1386,9 +1458,11 @@ cols = st.columns(5)
 for col, (ccy, label) in zip(cols, xccy_list):
     with col:
         s = get_series(dff, f"XCCY12_{ccy}")
+        s_full = get_series(df, f"XCCY12_{ccy}")
         if len(s):
             st.plotly_chart(
-                mini_dark(s, f"{label}/USD 12M basis", color=ACCENT_CYAN),
+                mini_dark(s, f"{label}/USD 12M basis", color=ACCENT_CYAN,
+                          y_range=full_range(s_full)),
                 use_container_width=True, key=f"xccy12m_{ccy}",
                 config={"displayModeBar": False},
             )
@@ -1457,12 +1531,25 @@ credit_fig.update_layout(
 )
 credit_fig.update_xaxes(showgrid=False, linecolor="#222",
                         tickfont=dict(color=TEXT_DIM, size=9))
+
+# Full-history ranges: left axis groups IG/EMBI/BofA/JPM, right axis groups HY/DB
+ig_full = get_series(df, "IG_OAS") * 100
+hy_full = get_series(df, "HY_OAS") * 100
+embi_full = get_series(df, "EMBI")
+bofa_full = get_series(df, "CDS_BOFA")
+jpm_full = get_series(df, "CDS_JPM")
+db_full = get_series(df, "CDS_DB_SUB")
+credit_left_range = full_range(ig_full, embi_full, bofa_full, jpm_full)
+credit_right_range = full_range(hy_full, db_full)
+
 credit_fig.update_yaxes(title_text="IG / EMBI / Bank CDS (bp)", secondary_y=False,
                         showgrid=True, gridcolor=GRID, linecolor="#222",
+                        range=credit_left_range,
                         title_font=dict(size=10, color="#aaa"),
                         tickfont=dict(color=TEXT_DIM, size=9))
 credit_fig.update_yaxes(title_text="HY / DB sub (bp)", secondary_y=True,
                         showgrid=False, linecolor="#222",
+                        range=credit_right_range,
                         title_font=dict(size=10, color="#aaa"),
                         tickfont=dict(color=TEXT_DIM, size=9))
 
@@ -1507,6 +1594,9 @@ credit_choice = st.selectbox(
 )
 credit_key, credit_unit = CREDIT_INDICES[credit_choice]
 cs = get_series(dff, credit_key).dropna()
+cs_full = get_series(df, credit_key).dropna()
+cidx_top_range = full_range(cs_full)
+cidx_bot_range = full_range(cs_full.diff().dropna()) if len(cs_full) else None
 
 cidx_fig = make_subplots(
     rows=2, cols=1, shared_xaxes=True,
@@ -1580,10 +1670,12 @@ y1_title = "Price ($)" if credit_unit == "price" else "Spread (bp)"
 cidx_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                       tickfont=dict(size=10, color=TEXT_DIM), linecolor="#222",
                       ticksuffix=y1_suffix, row=1, col=1,
+                      range=cidx_top_range,
                       title=dict(text=y1_title, font=dict(size=10, color="#888")))
 cidx_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                       tickfont=dict(size=10, color=TEXT_DIM), linecolor="#222",
                       ticksuffix=y1_suffix, row=2, col=1,
+                      range=cidx_bot_range,
                       title=dict(text="1d Δ", font=dict(size=10, color="#888")))
 st.plotly_chart(cidx_fig, use_container_width=True, key="credit_idx_explorer",
                 config={"displayModeBar": False})
@@ -1608,6 +1700,18 @@ st.markdown(
 
 mtg = get_series(dff, "MTG_30Y").dropna()
 ust10 = get_series(dff, "US_10Y").dropna()
+mtg_full = get_series(df, "MTG_30Y").dropna()
+ust10_full = get_series(df, "US_10Y").dropna()
+
+# Top panel range: across both yield series. Bottom panel: spread in bp.
+mtg_top_range = full_range(mtg_full, ust10_full)
+if len(mtg_full) and len(ust10_full):
+    aligned_full = pd.concat([mtg_full, ust10_full], axis=1, join="inner").dropna()
+    aligned_full.columns = ["mtg", "ust"]
+    spread_full_bp = (aligned_full["mtg"] - aligned_full["ust"]) * 100
+    mtg_bot_range = full_range(spread_full_bp)
+else:
+    mtg_bot_range = None
 
 mtg_fig = make_subplots(
     rows=2, cols=1, shared_xaxes=True,
@@ -1686,11 +1790,13 @@ mtg_fig.update_xaxes(showgrid=False, linecolor="#222",
 mtg_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                      tickfont=dict(size=10, color=TEXT_DIM), linecolor="#222",
                      ticksuffix="%", row=1, col=1,
+                     range=mtg_top_range,
                      title=dict(text="Yield (%)",
                                 font=dict(size=10, color="#888")))
 mtg_fig.update_yaxes(showgrid=True, gridcolor=GRID, zeroline=False,
                      tickfont=dict(size=10, color=TEXT_DIM), linecolor="#222",
                      ticksuffix="bp", row=2, col=1,
+                     range=mtg_bot_range,
                      title=dict(text="Spread (bp)",
                                 font=dict(size=10, color="#888")))
 st.plotly_chart(mtg_fig, use_container_width=True, key="mortgage_panel",

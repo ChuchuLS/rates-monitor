@@ -141,17 +141,23 @@ st.markdown(
         max-width: 100% !important;
     }
     /* Hide Streamlit Cloud chrome: top toolbar (GitHub icon, Share, Deploy
-       button, hamburger menu), the colored decoration bar, and the
-       "Hosted with Streamlit" footer badge */
+       button, hamburger menu) and the "Hosted with Streamlit" footer badge.
+       We keep the header element itself visible because it also contains
+       the sidebar collapse/expand button. */
     [data-testid="stToolbar"] { display: none !important; }
     [data-testid="stDecoration"] { display: none !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
-    [data-testid="stHeader"] { display: none !important; }
+    [data-testid="stDeployButton"] { display: none !important; }
     #MainMenu { visibility: hidden !important; display: none !important; }
-    header { visibility: hidden !important; display: none !important; }
     footer { visibility: hidden !important; display: none !important; }
     .viewerBadge_container__1QSob { display: none !important; }
     .viewerBadge_link__1S137 { display: none !important; }
+    /* Make the header bar transparent so it blends into the page,
+       but keep the sidebar toggle inside it visible */
+    [data-testid="stHeader"] {
+        background: transparent !important;
+        height: 0 !important;
+    }
     /* Section header style */
     .section-header {
         background: #0a0a0a;

@@ -81,7 +81,7 @@ st.markdown(
     }
     /* Reduce default block padding for tighter dashboard feel */
     .block-container {
-        padding-top: 1.5rem !important;
+        padding-top: 6rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }

@@ -140,13 +140,15 @@ st.markdown(
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
-    /* Hide Streamlit Cloud chrome: GitHub icon, Share button, Deploy button,
-       hamburger menu, and "Hosted with Streamlit" footer badge.
-       Keep the header itself fully visible so the sidebar toggle works. */
-    [data-testid="stToolbar"] { display: none !important; }
+    /* Hide Streamlit Cloud chrome: GitHub icon, Share, Deploy button,
+       hamburger menu, "Hosted with Streamlit" footer badge.
+       Note: we do NOT hide stToolbar because it contains the sidebar
+       collapse/expand arrow that the user needs. */
     [data-testid="stDecoration"] { display: none !important; }
     [data-testid="stStatusWidget"] { display: none !important; }
     [data-testid="stDeployButton"] { display: none !important; }
+    [data-testid="stActionButtonIcon"] { display: none !important; }
+    [data-testid="stToolbarActions"] { display: none !important; }
     #MainMenu { display: none !important; }
     footer { display: none !important; }
     .viewerBadge_container__1QSob { display: none !important; }

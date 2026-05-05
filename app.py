@@ -136,10 +136,22 @@ st.markdown(
     }
     /* Reduce default block padding for tighter dashboard feel */
     .block-container {
-        padding-top: 6rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
+    /* Hide Streamlit Cloud chrome: top toolbar (GitHub icon, Share, Deploy
+       button, hamburger menu), the colored decoration bar, and the
+       "Hosted with Streamlit" footer badge */
+    [data-testid="stToolbar"] { display: none !important; }
+    [data-testid="stDecoration"] { display: none !important; }
+    [data-testid="stStatusWidget"] { display: none !important; }
+    [data-testid="stHeader"] { display: none !important; }
+    #MainMenu { visibility: hidden !important; display: none !important; }
+    header { visibility: hidden !important; display: none !important; }
+    footer { visibility: hidden !important; display: none !important; }
+    .viewerBadge_container__1QSob { display: none !important; }
+    .viewerBadge_link__1S137 { display: none !important; }
     /* Section header style */
     .section-header {
         background: #0a0a0a;
